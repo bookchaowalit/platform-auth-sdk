@@ -1,0 +1,8 @@
+system_id: bookchaowalit/private/solo-service-auth
+prefix: CARD
+brand: "SOLO SERVICE AUTH"
+subtitle: "ไลบรารียืนยันตัวตน JWT (RS256) สำหรับบริการ metadata ส่วนตัวของเจ้าของ"
+footer: "solo-service-auth — Product Card"
+color: "#7a1f3d"
+audience: internal
+tier: L0
