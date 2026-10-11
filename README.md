@@ -1,7 +1,13 @@
 # Solo Empire service auth
 
-Installed library for the four owner-private metadata services. Install it
-alongside the owning service with `python3 -m pip install ./packages/service-auth ./services/accounts-api`.
+Moved out of solo-empire `packages/service-auth` on 2026-10-11 with its history (subtree split).
+Canonical home of the library; consumers (`solo-accounts/services/accounts-metadata-api`,
+`solo-integrations`, `solo-saas-catalog`, `solo-knowledge-api`, `solo-ai-usage`) carry a **vendored copy**
+under `vendor/service-auth` (private repos cannot pull this over HTTPS in a Railway/Docker build without
+credentials). Update here, then re-copy `service_auth/`, `pyproject.toml` and `tests/` into each consumer.
+
+Installed library for the owner-private metadata services. Install it
+alongside the owning service with `python3 -m pip install .` (or `./vendor/service-auth` in a consumer).
 Runtime imports use `service_auth`; no repository path is added.
 
 `AuthPolicy.from_env(prefix, audience, required_scope)` validates local PEM
@@ -22,5 +28,5 @@ algorithm selection and required-claim verification. Dependency is
 Test using an environment where the package is installed:
 
 ```bash
-python3 -m unittest discover -s packages/service-auth/tests -v
+python3 -m unittest discover -s tests -v
 ```
