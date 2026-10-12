@@ -1,8 +1,8 @@
 # Solo Empire service auth
 
 Moved out of solo-empire `packages/service-auth` on 2026-10-11 with its history (subtree split).
-Canonical home of the library; consumers (`solo-accounts/services/accounts-metadata-api`,
-`solo-integrations`, `solo-saas-catalog`, `solo-knowledge-api`, `solo-ai-usage`) carry a **vendored copy**
+Canonical home of the library; consumers (`accounts/services/accounts-metadata-api`,
+`integrations`, `saas-catalog`, `knowledge-api`, `ai-usage`) carry a **vendored copy**
 under `vendor/service-auth` (private repos cannot pull this over HTTPS in a Railway/Docker build without
 credentials). Update here, then re-copy `service_auth/`, `pyproject.toml` and `tests/` into each consumer.
 
