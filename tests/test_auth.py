@@ -2,18 +2,24 @@ import math
 import os
 import time
 import unittest
+from typing import Any
 from unittest.mock import patch
 
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
 from service_auth import AuthError, AuthPolicy
 
 
 class AuthTests(unittest.TestCase):
+    key: RSAPrivateKey
+    other_key: RSAPrivateKey
+    public: str
+
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         cls.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         cls.other_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         cls.public = (
@@ -25,7 +31,7 @@ class AuthTests(unittest.TestCase):
             .decode()
         )
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.policy = AuthPolicy(
             "https://solo.example",
             "accounts-api",
@@ -34,7 +40,14 @@ class AuthTests(unittest.TestCase):
             "accounts:read",
         )
 
-    def token(self, changes=None, *, key=None, headers=None, omit=None):
+    def token(
+        self,
+        changes: dict[str, Any] | None = None,
+        *,
+        key: RSAPrivateKey | None = None,
+        headers: dict[str, Any] | None = None,
+        omit: str | None = None,
+    ) -> str:
         now = int(time.time())
         claims = {
             "iss": "https://solo.example",
@@ -52,13 +65,13 @@ class AuthTests(unittest.TestCase):
             claims.pop(omit)
         return jwt.encode(claims, key or self.key, algorithm="RS256", headers=headers)
 
-    def rejected(self, token, status=401):
+    def rejected(self, token: str, status: int = 401) -> None:
         with self.assertRaises(AuthError) as ctx:
             self.policy.authenticate({"Authorization": "Bearer " + token})
         self.assertEqual(ctx.exception.status, status)
         self.assertNotIn(token, str(ctx.exception))
 
-    def test_identity_is_sanitized(self):
+    def test_identity_is_sanitized(self) -> None:
         identity = self.policy.authenticate(
             {"authorization": "Bearer " + self.token({"private": "sentinel"})}
         )
@@ -66,7 +79,7 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(identity.tenant_id, "owner")
         self.assertFalse(hasattr(identity, "private"))
 
-    def test_signature_issuer_audience_and_algorithm(self):
+    def test_signature_issuer_audience_and_algorithm(self) -> None:
         self.rejected(self.token(key=self.other_key))
         for changes in (
             {"iss": "https://other.example"},
@@ -82,7 +95,7 @@ class AuthTests(unittest.TestCase):
             )
         )
 
-    def test_time_bounds_and_types(self):
+    def test_time_bounds_and_types(self) -> None:
         now = int(time.time())
         for changes in (
             {"iat": now - 200, "nbf": now - 200, "exp": now - 80},
@@ -99,7 +112,7 @@ class AuthTests(unittest.TestCase):
             with self.subTest(changes=changes):
                 self.rejected(self.token(changes))
 
-    def test_all_claims_required(self):
+    def test_all_claims_required(self) -> None:
         for claim in (
             "iss",
             "aud",
@@ -114,7 +127,7 @@ class AuthTests(unittest.TestCase):
             self.rejected(self.token(omit=claim))
         self.rejected(self.token({"jti": ""}))
 
-    def test_owner_and_scope_authorization(self):
+    def test_owner_and_scope_authorization(self) -> None:
         for claims in (
             {"tenant_id": "other"},
             {"sub": "other-owner"},
@@ -123,14 +136,14 @@ class AuthTests(unittest.TestCase):
         ):
             self.rejected(self.token(claims), 403)
 
-    def test_remote_key_headers_and_oversize(self):
+    def test_remote_key_headers_and_oversize(self) -> None:
         for header in ("jku", "jwk", "x5u", "x5c"):
             self.rejected(self.token(headers={header: "https://untrusted.invalid/key"}))
         self.rejected("x" * 9000)
         with self.assertRaises(AuthError):
             self.policy.authenticate({})
 
-    def test_missing_or_invalid_configuration_fails_closed(self):
+    def test_missing_or_invalid_configuration_fails_closed(self) -> None:
         for issuer, public, subjects in (
             ("https://solo.example", self.public, frozenset()),
             ("http://solo.example", self.public, frozenset({"oidc-owner"})),
@@ -149,7 +162,7 @@ class AuthTests(unittest.TestCase):
                 policy.authenticate({})
             self.assertEqual(ctx.exception.status, 503)
 
-    def test_key_rotation_rejects_previous_signature(self):
+    def test_key_rotation_rejects_previous_signature(self) -> None:
         rotated = (
             self.other_key.public_key()
             .public_bytes(
@@ -174,7 +187,7 @@ class AuthTests(unittest.TestCase):
             "oidc-owner",
         )
 
-    def test_environment_config_and_partial_config(self):
+    def test_environment_config_and_partial_config(self) -> None:
         with patch.dict(
             os.environ,
             {

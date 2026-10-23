@@ -25,8 +25,15 @@ See [PyJWT API](https://pyjwt.readthedocs.io/en/latest/api.html) for fixed
 algorithm selection and required-claim verification. Dependency is
 `PyJWT[crypto]>=2.10.1,<3`.
 
-Test using an environment where the package is installed:
+Development uses [uv](https://docs.astral.sh/uv/) with the committed `uv.lock`
+(the same steps run in CI through the shared `ci-python.yml`):
 
 ```bash
-python3 -m unittest discover -s tests -v
+uv sync --frozen --all-extras
+uv run ruff check . && uv run ruff format --check .
+uv run mypy .            # strict, see [tool.mypy] in pyproject.toml
+uv run pytest --cov      # CI gate: 99% line coverage
 ```
+
+The tests are plain `unittest`, so `python3 -m unittest discover -s tests -v` also works in a
+consumer's vendored copy. What the library is and is not: [PRODUCT.md](PRODUCT.md).

@@ -9,6 +9,7 @@ import secrets
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Protocol
 from urllib.parse import urlsplit
 
 import jwt
@@ -16,10 +17,16 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 
+class SnapshotStore(Protocol):
+    """Anything whose ``snapshot()`` raises when the backing source is unavailable."""
+
+    def snapshot(self) -> object: ...
+
+
 class AuthError(Exception):
     """Safe public error; never contains a token or decoded claims."""
 
-    def __init__(self, status: int, code: str, message: str):
+    def __init__(self, status: int, code: str, message: str) -> None:
         super().__init__(message)
         self.status, self.code, self.message = status, code, message
 
@@ -40,7 +47,7 @@ class AuthPolicy:
     required_scope: str
     _key: RSAPublicKey | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         try:
             origin = urlsplit(self.issuer)
             valid_origin = (
@@ -94,7 +101,8 @@ class AuthPolicy:
         return self._key is not None
 
     def authenticate(self, headers: Mapping[str, str]) -> Identity:
-        if not self.ready:
+        key = self._key
+        if key is None:
             raise AuthError(
                 503, "reads_disabled", "Scoped read authorization is not configured"
             )
@@ -120,7 +128,7 @@ class AuthPolicy:
                 raise invalid
             claims = jwt.decode(
                 token,
-                self._key,
+                key,
                 algorithms=["RS256"],
                 issuer=self.issuer,
                 audience=self.audience,
@@ -180,7 +188,7 @@ class AuthPolicy:
 
 def check_read_auth(
     policy: AuthPolicy, headers: Mapping[str, str], *, environment: str, token: str
-):
+) -> Identity | None:
     """Static tokens are retained solely for explicitly local development."""
     if environment != "development" or policy.configured:
         return policy.authenticate(headers)
@@ -202,7 +210,9 @@ def is_loopback(host: str) -> bool:
         return False
 
 
-def readiness(policy: AuthPolicy, environment: str, store) -> tuple[int, dict]:
+def readiness(
+    policy: AuthPolicy, environment: str, store: SnapshotStore
+) -> tuple[int, dict[str, str]]:
     # Readiness never publishes catalog rows, paths, or exception text.
     try:
         store.snapshot()
@@ -228,6 +238,7 @@ __all__ = [
     "AuthError",
     "AuthPolicy",
     "Identity",
+    "SnapshotStore",
     "check_read_auth",
     "is_loopback",
     "readiness",
